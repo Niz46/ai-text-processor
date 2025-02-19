@@ -124,7 +124,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const title = document.createElement("h3");
       title.textContent =
-        chat.input.length > 20 ? chat.input.substring(0, 20) + "..." : chat.input;
+        chat.input.length > 30 ? chat.input.substring(0, 30) : chat.input;
       title.style.margin = "0 0 5px 0";
       title.style.fontSize = "1.1em";
 
