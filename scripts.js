@@ -58,7 +58,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const response = await chrome.ai.summarizer.summarize(text);
         return response.summary || "Summary not available";
       } else {
-        return text.slice(0, 150) + "...";
+        return text.slice(0, 170);
       }
     } catch (error) {
       console.error("Summarization error:", error);
@@ -124,7 +124,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const title = document.createElement("h3");
       title.textContent =
-        chat.input.length > 30 ? chat.input.substring(0, 30) : chat.input;
+        chat.input.length > 20 ? chat.input.substring(0, 20) + "..." : chat.input;
       title.style.margin = "0 0 5px 0";
       title.style.fontSize = "1.1em";
 
