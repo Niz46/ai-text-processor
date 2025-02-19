@@ -21,7 +21,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Translate text using the built-in API and, if that fails, fall back to Google Translate.
   async function translateText(text, targetLang, sourceLang = "auto") {
     try {
       if (typeof chrome !== "undefined" && chrome.ai && chrome.ai.translator) {
@@ -51,20 +50,44 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Summarize text using the built-in API or a simple fallback.
-  async function summarizeText(text) {
+  // --- Improved Summarization Function ---
+  const summarizeContent = async (text) => {
+    // Try using the built-in summarizer first
     try {
       if (typeof chrome !== "undefined" && chrome.ai && chrome.ai.summarizer) {
         const response = await chrome.ai.summarizer.summarize(text);
-        return response.summary || "Summary not available";
-      } else {
-        return text.slice(0, 170);
+        if (response.summary) return response.summary;
       }
-    } catch (error) {
-      console.error("Summarization error:", error);
-      throw new Error("Summarization failed");
+    } catch (err) {
+      console.error("Built-in summarizer error:", err);
     }
-  }
+    
+    // Fallback: a simple frequency-based summarization
+    const sentences = text.match(/[^\.!\?]+[\.!\?]+/g) || [text];
+    if (sentences.length <= 1) return text; // Not enough to summarize
+
+    const stopWords = new Set(["the", "and", "a", "an", "of", "in", "to", "is", "it", "that", "this"]);
+    const words = text.toLowerCase().match(/\w+/g) || [];
+    const freqMap = {};
+    words.forEach(word => {
+      if (!stopWords.has(word)) {
+        freqMap[word] = (freqMap[word] || 0) + 1;
+      }
+    });
+
+    const sentenceScores = sentences.map(sentence => {
+      const sentenceWords = sentence.toLowerCase().match(/\w+/g) || [];
+      const score = sentenceWords.reduce((sum, word) => sum + (freqMap[word] || 0), 0);
+      return { sentence, score };
+    });
+
+    sentenceScores.sort((a, b) => b.score - a.score);
+    const topSentences = sentenceScores.slice(0, 3)
+      .sort((a, b) => text.indexOf(a.sentence) - text.indexOf(b.sentence))
+      .map(item => item.sentence.trim());
+
+    return topSentences.join(" ");
+  };
 
   // Show a notification message on the screen.
   function showNotification(message) {
@@ -128,7 +151,6 @@ document.addEventListener("DOMContentLoaded", () => {
       title.style.margin = "0 0 5px 0";
       title.style.fontSize = "1.1em";
 
-      // Formatted date
       const dateOptions = {
         weekday: "short",
         year: "numeric",
@@ -215,7 +237,7 @@ document.addEventListener("DOMContentLoaded", () => {
     translate();
   });
 
-  // --- Summarization Function ---
+  // --- Improved Summarization Functionality ---
   document.getElementById("summarize-btn").addEventListener("click", async () => {
     const text = inputTextElem.value.trim();
     if (!text) {
@@ -226,25 +248,13 @@ document.addEventListener("DOMContentLoaded", () => {
       showNotification("Text must be more than 150 characters for summarization.");
       return;
     }
-    let sourceLang =
-      inputLanguageDropdown.querySelector(".selected").dataset.value;
-    if (sourceLang === "auto") {
-      try {
-        sourceLang = await detectLanguage(text);
-        const selectedSpan = inputLanguageDropdown.querySelector(".selected");
-        selectedSpan.innerHTML = sourceLang.toUpperCase();
-        selectedSpan.dataset.value = sourceLang;
-      } catch (err) {
-        showNotification(err.message);
-        return;
-      }
-    }
     outputTextElem.value = "Summarizing...";
     try {
-      const summary = await summarizeText(text);
+      const summary = await summarizeContent(text);
       outputTextElem.value = summary;
-    } catch (err) {
-      outputTextElem.value = err.message;
+    } catch (error) {
+      console.error("Summarization error:", error);
+      outputTextElem.value = "An error occurred during summarization.";
     }
   });
 
