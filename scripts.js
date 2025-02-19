@@ -3,7 +3,6 @@
 document.addEventListener("DOMContentLoaded", () => {
   // --- Helper Functions ---
 
-  // Detect language using the built-in API or a simple fallback.
   async function detectLanguage(text) {
     try {
       if (
@@ -22,21 +21,30 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Translate text using the built-in API or fallback to Google Translate.
+  // Translate text using the built-in API and, if that fails, fall back to Google Translate.
   async function translateText(text, targetLang, sourceLang = "auto") {
     try {
       if (typeof chrome !== "undefined" && chrome.ai && chrome.ai.translator) {
-        const response = await chrome.ai.translator.translate(text, {
-          targetLanguage: targetLang,
-          sourceLanguage: sourceLang,
-        });
-        return response.translation || "Translation not available";
-      } else {
-        const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sourceLang}&tl=${targetLang}&dt=t&q=${encodeURI(text)}`;
-        const res = await fetch(url);
-        const json = await res.json();
-        return json[0].map((item) => item[0]).join("");
+        try {
+          const response = await chrome.ai.translator.translate(text, {
+            targetLanguage: targetLang,
+            sourceLanguage: sourceLang,
+          });
+          return response.translation || "Translation not available";
+        } catch (chromeError) {
+          console.error(
+            "Chrome translator error, falling back to Google Translate:",
+            chromeError
+          );
+        }
       }
+      // Fallback to Google Translate endpoint
+      const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sourceLang}&tl=${targetLang}&dt=t&q=${encodeURIComponent(
+        text
+      )}`;
+      const res = await fetch(url);
+      const json = await res.json();
+      return json[0].map((item) => item[0]).join("");
     } catch (error) {
       console.error("Translation error:", error);
       throw new Error("Translation failed");
@@ -202,6 +210,7 @@ document.addEventListener("DOMContentLoaded", () => {
       outputTextElem.value = err.message;
     }
   }
+
   document.getElementById("translate-btn").addEventListener("click", () => {
     translate();
   });
@@ -326,7 +335,6 @@ document.addEventListener("DOMContentLoaded", () => {
       try {
         const detectedLanguage = await detectLanguage(text);
         const selectedSpan = inputLanguageDropdown.querySelector(".selected");
-
         const langObj = languages.find((lang) => lang.code === detectedLanguage);
         selectedSpan.innerHTML = langObj ? langObj.name : detectedLanguage;
         selectedSpan.dataset.value = detectedLanguage;
